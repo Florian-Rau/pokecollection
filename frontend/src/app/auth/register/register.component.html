@@ -1,0 +1,43 @@
+<section class="register-shell">
+  <div class="register-card">
+    <h1>Erstelle deinen Pokémon Trainer Account</h1>
+    <p class="subtitle">Registriere dich einmal, um dann deine private Pokémon Sammlung zu erstellen.</p>
+
+    <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+      <label>
+        Trainer name
+        <input type="text" formControlName="name" autocomplete="username" />
+      </label>
+      @if (form.controls.name.touched && form.controls.name.hasError('required')) {
+        <p class="field-error">Trainer Name ist erforderlich.</p>
+      }
+
+      <label>
+        Password
+        <input type="password" formControlName="password" autocomplete="new-password" />
+      </label>
+      @if (form.controls.password.touched && form.controls.password.hasError('required')) {
+        <p class="field-error">Passwort ist erforderlich.</p>
+      }
+      @if (form.controls.password.touched && form.controls.password.hasError('minlength')) {
+        <p class="field-error">Passwort muss mindestens 6 Zeichen lang sein.</p>
+      }
+
+      <label>
+        Password bestätigen
+        <input type="password" formControlName="confirmPassword" autocomplete="new-password" />
+      </label>
+      @if (form.controls.confirmPassword.touched && form.controls.confirmPassword.hasError('required')) {
+        <p class="field-error">Bitte bestätige Dein Passwort.</p>
+      }
+
+      @if (serverError()) {
+        <p class="server-error" role="alert">{{ serverError() }}</p>
+      }
+
+      <button type="submit" [disabled]="submitting()">
+        {{ submitting() ? 'Erstelle Account...' : 'Registrieren' }}
+      </button>
+    </form>
+  </div>
+</section>

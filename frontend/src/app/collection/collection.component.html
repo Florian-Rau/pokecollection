@@ -1,0 +1,41 @@
+<section class="collection-shell">
+  <div class="collection-card">
+    @if (sessionLoading()) {
+      <p>Lade die Daten...</p>
+    } @else {
+      <div>
+        <h1>Meine Sammlung</h1>
+        <p class="welcome">Willkommen, Trainer {{ username() }}.</p>
+      </div>
+      <div class="collection-actions">
+        <button type="button" routerLink="/browse">Durchsuche Katalog</button>
+        <button type="button" (click)="logout()" class="secondary">Ausloggen</button>
+      </div>
+      @if (collectionLoading()) {
+        <p>Lade deine Pokémon Sammlung...</p>
+      } @else if (unavailable()) {
+        <p class="status-message" role="alert">
+          Deine Sammlung ist momentan nicht verfügbar. Bitte versuche es später erneut.
+        </p>
+        <button type="button" (click)="retry()">Erneut versuchen</button>
+      } @else if (collection().length === 0) {
+        <p>Du hast noch keine Pokémon gefangen.</p>
+      } @else {
+        <ul class="collection-list">
+          @for (entry of collection(); track entry.pokemonId) {
+            <li class="collection-entry">
+              <img [src]="entry.spriteUrl" [alt]="entry.pokemonName + ' sprite'" width="96" height="96" />
+              <div>
+              <h2>{{ entry.pokemonName }}</h2>
+              <p>
+                Hinzugefügt am
+                <time [attr.datetime]="entry.addedAt">{{ entry.addedAt | date:'mediumDate' }}</time>
+              </p>
+              </div>
+            </li>
+          }
+        </ul>
+      }
+    }
+  </div>
+</section>

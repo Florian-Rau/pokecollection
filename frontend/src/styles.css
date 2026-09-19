@@ -1,0 +1,17 @@
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  font-family: "Trebuchet MS", Arial, Helvetica, sans-serif;
+  background:
+    radial-gradient(circle at top, #4dadf7 0%, #2a75bb 28%, #1b3b6f 60%, #0f172a 100%);
+  color: #1f2937;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background-attachment: fixed;
+}

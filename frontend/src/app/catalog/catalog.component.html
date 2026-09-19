@@ -1,0 +1,113 @@
+<section class="catalog-shell">
+  <div class="catalog-card">
+    @if (sessionLoading()) {
+      <p>Lade die Daten...</p>
+    } @else {
+      <div class="catalog-header">
+        <div>
+          <h1>Pokémon zur Sammlung hinzufügen</h1>
+          <p class="welcome">Willkommen, Trainer {{ username() }}.</p>
+        </div>
+        <div class="catalog-links">
+          <button type="button" routerLink="/collection">Meine Sammlung</button>
+          <button type="button" class="secondary" (click)="logout()">Ausloggen</button>
+        </div>
+      </div>
+
+      <form class="catalog-search" (ngSubmit)="submitSearch()">
+        <label for="pokemon-search">Filtere nach Pokémon</label>
+        <div class="catalog-search-controls">
+          <input
+            id="pokemon-search"
+            name="query"
+            type="text"
+            [ngModel]="query()"
+            (ngModelChange)="onQueryChange($event)"
+            placeholder="z.B. Charizard"
+          />
+          <button type="submit" [disabled]="searchingExactName()">Suche nach vollständigem Namen</button>
+        </div>
+      </form>
+
+      @if (unavailable()) {
+        <div class="catalog-message error-state" role="alert">
+          <p>Der Pokémon Katalog ist momentan nicht verfügbar. Bitte versuche es später erneut.</p>
+          <button type="button" (click)="retry()">Erneut versuchen</button>
+        </div>
+      } @else {
+        <div class="catalog-toolbar">
+          <p>
+            Zeige {{ currentRangeStart() }} bis {{ currentRangeEnd() }} von insgesamt {{ totalCount() }} Pokémon
+            @if (query().trim()) {
+              <span> · Zeige {{ visibleResults().length }} Treffer</span>
+            }
+          </p>
+          <div class="catalog-pagination">
+            <button
+              type="button"
+              class="secondary"
+              (click)="loadPreviousPage()"
+              [disabled]="catalogLoading() || !currentPage()?.previous"
+            >Vorige Seite</button>
+            <button
+              type="button"
+              class="secondary"
+              (click)="loadNextPage()"
+              [disabled]="catalogLoading() || !currentPage()?.next"
+            >Nächste Seite</button>
+          </div>
+        </div>
+
+        @if (pageLoadError() && currentPage()) {
+          <div class="catalog-message error-state" role="alert">
+            <p>{{ pageLoadError() }}</p>
+            <button type="button" class="secondary" (click)="retry()">Erneut versuchen</button>
+          </div>
+        }
+
+        @if (addError()) {
+          <div class="catalog-message error-state" role="alert">
+            <p>{{ addError() }}</p>
+          </div>
+        }
+
+        @if (catalogLoading()) {
+          <p class="catalog-message">Lade Pokémon...</p>
+        } @else if (noResultsMessage()) {
+          <p class="catalog-message" role="status">{{ noResultsMessage() }}</p>
+        } @else if (query().trim() && visibleResults().length === 0) {
+          <p class="catalog-message" role="status">
+            Keine geladenen Pokémon stimmen mit diesem Filter überein. Verwende „Vollständigen Namen suchen“, um den Live-Katalog zu überprüfen.
+          </p>
+        } @else if (visibleResults().length === 0) {
+          <p class="catalog-message" role="status">Du hast noch keine Pokémon.</p>
+        }
+
+        <ul class="catalog-list">
+          @for (pokemon of visibleResults(); track pokemon.pokemonId) {
+            <li class="catalog-item">
+              <img [src]="pokemon.spriteUrl" [alt]="pokemon.name" width="96" height="96" />
+              <div>
+                <h2>{{ pokemon.name }}</h2>
+                <button
+                  type="button"
+                    class="catalog-action"
+                  (click)="addToCollection(pokemon)"
+                  [disabled]="ownedPokemonIds().has(pokemon.pokemonId) || addingPokemonId() !== null"
+                >
+                  @if (ownedPokemonIds().has(pokemon.pokemonId)) {
+                    Gefangen
+                  } @else if (addingPokemonId() === pokemon.pokemonId) {
+                    Hinzufügen...
+                  } @else {
+                    Hinzufügen
+                  }
+                </button>
+              </div>
+            </li>
+          }
+        </ul>
+      }
+    }
+  </div>
+</section>

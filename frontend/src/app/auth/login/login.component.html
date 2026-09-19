@@ -1,0 +1,35 @@
+<section class="auth-shell">
+  <div class="auth-card">
+    <h1>Login Pokémon Sammlung</h1>
+    <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+      <label>
+        Trainer Name
+        <input type="text" formControlName="name" autocomplete="username" />
+      </label>
+      @if (form.controls.name.touched && form.controls.name.hasError('required')) {
+        <p class="field-error">Trainer Name ist erforderlich.</p>
+      }
+
+      <label>
+        Passwort
+        <input type="password" formControlName="password" autocomplete="current-password" />
+      </label>
+      @if (form.controls.password.touched && form.controls.password.hasError('required')) {
+        <p class="field-error">Passwort ist erforderlich.</p>
+      }
+
+      @if (serverError()) {
+        <p class="server-error" role="alert">{{ serverError() }}</p>
+      }
+
+      <button type="submit" [disabled]="submitting()">
+        {{ submitting() ? 'Anmelden...' : 'Einloggen' }}
+      </button>
+    </form>
+
+    <p class="secondary-action">
+      Du hast noch keinen Account?<br/>
+      <a routerLink="/register">Registriere einen neuen Trainer</a>
+    </p>
+  </div>
+</section>
