@@ -10,8 +10,13 @@ spring:
     open-in-view: false
   flyway:
     enabled: true
-
+  main:
+    banner-mode: "off"
 logging:
   level:
-    root: INFO
-    com.pokemoncollection: INFO
+    root: ERROR
+
+security:
+  jwt:
+    secret-key: cG9rZW1vbi1jb2xsZWN0aW9uLXRlc3Qtc2VjcmV0LWtleS0zMi1ieXRlcyE=
+    expiration-time: 300000

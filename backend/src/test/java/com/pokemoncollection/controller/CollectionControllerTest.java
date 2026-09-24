@@ -6,8 +6,6 @@ import static org.hamcrest.Matchers.hasKey;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.when;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -23,6 +21,7 @@ import com.pokemoncollection.repository.TrainerRepository;
 import com.pokemoncollection.exception.PokeApiUnavailableException;
 import com.pokemoncollection.exception.PokemonNotFoundException;
 import com.pokemoncollection.service.PokemonService;
+import com.pokemoncollection.service.AuthService;
 import java.time.Instant;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -56,6 +55,9 @@ class CollectionControllerTest
   @Autowired
   private PokemonService pokemonService;
 
+  @Autowired
+  private AuthService authService;
+
   @BeforeEach
   void setUp()
   {
@@ -77,7 +79,7 @@ class CollectionControllerTest
     collectionEntryRepository.save(new CollectionEntry(chase, 4L, "charmander", Instant.parse("2026-09-19T09:45:00Z")));
     collectionEntryRepository.save(new CollectionEntry(misty, 7L, "squirtle", Instant.parse("2026-09-20T10:30:00Z")));
 
-    mockMvc.perform(get("/api/collection").with(user("Chase")))
+    mockMvc.perform(get("/api/collection").header("Authorization", bearerToken("Chase")))
       .andExpect(status().isOk())
       .andExpect(content().contentType("application/json"))
       .andExpect(jsonPath("$.length()", equalTo(2)))
@@ -94,7 +96,7 @@ class CollectionControllerTest
   {
     trainerRepository.save(new Trainer("Chase", "hash-1"));
 
-    mockMvc.perform(get("/api/collection").with(user("Chase")))
+    mockMvc.perform(get("/api/collection").header("Authorization", bearerToken("Chase")))
       .andExpect(status().isOk())
       .andExpect(content().contentType("application/json"))
       .andExpect(content().json("[]"));
@@ -121,8 +123,7 @@ class CollectionControllerTest
     ));
 
     mockMvc.perform(post("/api/collection")
-                      .with(user("Chase"))
-                      .with(csrf())
+                      .header("Authorization", bearerToken("Chase"))
                       .contentType("application/json")
                       .content("""
                                  {"pokemonId":25}
@@ -130,7 +131,7 @@ class CollectionControllerTest
       .andExpect(status().isNoContent())
       .andExpect(content().string(""));
 
-    mockMvc.perform(get("/api/collection").with(user("Chase")))
+    mockMvc.perform(get("/api/collection").header("Authorization", bearerToken("Chase")))
       .andExpect(status().isOk())
       .andExpect(jsonPath("$.length()", equalTo(1)))
       .andExpect(jsonPath("$[0].pokemonId", equalTo(25)))
@@ -148,8 +149,7 @@ class CollectionControllerTest
     ));
 
     mockMvc.perform(post("/api/collection")
-                      .with(user("Chase"))
-                      .with(csrf())
+                      .header("Authorization", bearerToken("Chase"))
                       .contentType("application/json")
                       .content("""
                                  {"pokemonId":25}
@@ -157,8 +157,7 @@ class CollectionControllerTest
       .andExpect(status().isNoContent());
 
     mockMvc.perform(post("/api/collection")
-                      .with(user("Chase"))
-                      .with(csrf())
+                      .header("Authorization", bearerToken("Chase"))
                       .contentType("application/json")
                       .content("""
                                  {"pokemonId":25}
@@ -176,8 +175,7 @@ class CollectionControllerTest
     when(pokemonService.findById(9999L)).thenThrow(new PokemonNotFoundException(9999L));
 
     mockMvc.perform(post("/api/collection")
-                      .with(user("Chase"))
-                      .with(csrf())
+                      .header("Authorization", bearerToken("Chase"))
                       .contentType("application/json")
                       .content("""
                                  {"pokemonId":9999}
@@ -193,8 +191,7 @@ class CollectionControllerTest
     trainerRepository.save(new Trainer("Chase", "hash-1"));
 
     mockMvc.perform(post("/api/collection")
-                      .with(user("Chase"))
-                      .with(csrf())
+                      .header("Authorization", bearerToken("Chase"))
                       .contentType("application/json")
                       .content("{}"))
       .andExpect(status().isBadRequest())
@@ -202,8 +199,7 @@ class CollectionControllerTest
       .andExpect(jsonPath("$.detail", equalTo("Pokémon id is required.")));
 
     mockMvc.perform(post("/api/collection")
-                      .with(user("Chase"))
-                      .with(csrf())
+                      .header("Authorization", bearerToken("Chase"))
                       .contentType("application/json")
                       .content("""
                                  {"pokemonId":"abc"}
@@ -217,7 +213,6 @@ class CollectionControllerTest
   void addToCollectionRequiresAuthentication() throws Exception
   {
     mockMvc.perform(post("/api/collection")
-                      .with(csrf())
                       .contentType("application/json")
                       .content("""
                                  {"pokemonId":25}
@@ -235,8 +230,7 @@ class CollectionControllerTest
     when(pokemonService.findById(25L)).thenThrow(new PokeApiUnavailableException());
 
     mockMvc.perform(post("/api/collection")
-                      .with(user("Chase"))
-                      .with(csrf())
+                      .header("Authorization", bearerToken("Chase"))
                       .contentType("application/json")
                       .content("""
                                  {"pokemonId":25}
@@ -257,5 +251,11 @@ class CollectionControllerTest
     {
       return mock(PokemonService.class);
     }
+
+  }
+
+  private String bearerToken(String username)
+  {
+    return "Bearer " + authService.generateToken(username);
   }
 }

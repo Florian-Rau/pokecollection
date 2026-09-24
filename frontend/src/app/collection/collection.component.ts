@@ -32,19 +32,8 @@ export class CollectionComponent {
       return;
     }
 
-    this.authApi.loadSession()
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: () => {
-          this.sessionLoading.set(false);
-          this.loadCollection();
-        },
-        error: () => {
-          this.authApi.clearSession();
-          this.sessionLoading.set(false);
-          void this.router.navigate(['/login']);
-        }
-      });
+    this.sessionLoading.set(false);
+    void this.router.navigate(['/login']);
   }
 
   retry() {
@@ -59,7 +48,7 @@ export class CollectionComponent {
           void this.router.navigate(['/login']);
         },
         error: () => {
-          // Treat a failed logout request (e.g. the session already expired) the same as a
+          // Treat a failed logout request the same as a
           // successful one: the user's intent is to end up logged out, so clear any local
           // state and send them to /login rather than leaving them stuck on this page.
           this.authApi.clearSession();

@@ -5,6 +5,7 @@ import { RouterTestingHarness } from '@angular/router/testing';
 import { routes } from './app.routes';
 import { CollectionComponent } from './collection/collection.component';
 import { provideRouter } from '@angular/router';
+import { AuthStateService } from './core/auth-state.service';
 
 describe('app routes', () => {
   let httpMock: HttpTestingController;
@@ -15,6 +16,7 @@ describe('app routes', () => {
     }).compileComponents();
 
     httpMock = TestBed.inject(HttpTestingController);
+    TestBed.inject(AuthStateService).setSession('test-token', 'Chase');
   });
 
   afterEach(() => {
@@ -24,7 +26,6 @@ describe('app routes', () => {
   it('redirects the root path to /collection, which resolves to CollectionComponent', async () => {
     const harness = await RouterTestingHarness.create('/');
 
-    httpMock.expectOne('/api/auth/session').flush({ username: 'Chase' });
     httpMock.expectOne('/api/collection').flush([]);
 
     expect(harness.routeDebugElement?.componentInstance).toBeInstanceOf(CollectionComponent);
@@ -33,7 +34,6 @@ describe('app routes', () => {
   it('resolves /collection directly to CollectionComponent', async () => {
     const harness = await RouterTestingHarness.create('/collection');
 
-    httpMock.expectOne('/api/auth/session').flush({ username: 'Chase' });
     httpMock.expectOne('/api/collection').flush([]);
 
     expect(harness.routeDebugElement?.componentInstance).toBeInstanceOf(CollectionComponent);

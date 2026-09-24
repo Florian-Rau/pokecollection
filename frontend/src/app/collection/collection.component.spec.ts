@@ -1,7 +1,7 @@
 import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
-import { defer, of, throwError } from 'rxjs';
+import { of, throwError } from 'rxjs';
 import { vi } from 'vitest';
 import { AuthApiService } from '../core/auth-api.service';
 import { CollectionApiService, CollectionEntryDto } from './collection-api.service';
@@ -10,7 +10,7 @@ import { CollectionComponent } from './collection.component';
 describe('CollectionComponent', () => {
   let fixture: ComponentFixture<CollectionComponent>;
   let component: CollectionComponent;
-  let authApiService: Pick<AuthApiService, 'loadSession' | 'logout' | 'clearSession' | 'username' | 'isAuthenticated'>;
+  let authApiService: Pick<AuthApiService, 'logout' | 'clearSession' | 'username' | 'isAuthenticated'>;
   let collectionApiService: Pick<CollectionApiService, 'getCollection'>;
 
   const collectionEntries: CollectionEntryDto[] = [
@@ -55,7 +55,6 @@ describe('CollectionComponent', () => {
 
   it('loads the collection immediately when already authenticated', async () => {
     authApiService = {
-      loadSession: vi.fn(),
       logout: vi.fn().mockReturnValue(of(void 0)),
       clearSession: vi.fn(),
       username: signal<string | null>('Chase'),
@@ -67,7 +66,6 @@ describe('CollectionComponent', () => {
 
     expect(collectionApiService.getCollection).toHaveBeenCalled();
     expect(component.loading()).toBe(false);
-    expect(authApiService.loadSession).not.toHaveBeenCalled();
     expect(component.collection()).toEqual(collectionEntries);
     expect(fixture.nativeElement.textContent).toContain('pikachu');
     expect(fixture.nativeElement.textContent).toContain('eevee');
@@ -78,16 +76,11 @@ describe('CollectionComponent', () => {
     expect(timeElements[1].getAttribute('datetime')).toBe('2026-09-20T11:30:00Z');
   });
 
-  it('loads the session and then fetches the collection when not yet authenticated', async () => {
-    const username = signal<string | null>(null);
+  it('redirects to login when no local token is present', async () => {
     authApiService = {
-      loadSession: vi.fn().mockReturnValue(defer(() => {
-        username.set('Chase');
-        return of({ username: 'Chase' });
-      })),
       logout: vi.fn().mockReturnValue(of(void 0)),
       clearSession: vi.fn(),
-      username,
+      username: signal<string | null>(null),
       isAuthenticated: signal(false)
     };
     await createComponent(authApiService);
@@ -96,11 +89,9 @@ describe('CollectionComponent', () => {
 
     fixture.detectChanges();
 
-    expect(authApiService.loadSession).toHaveBeenCalled();
-    expect(collectionApiService.getCollection).toHaveBeenCalled();
-    expect(component.username()).toBe('Chase');
+    expect(collectionApiService.getCollection).not.toHaveBeenCalled();
     expect(component.loading()).toBe(false);
-    expect(navigateSpy).not.toHaveBeenCalled();
+    expect(navigateSpy).toHaveBeenCalledWith(['/login']);
   });
 
   it('shows the empty state when the trainer has not collected any Pokémon yet', async () => {
@@ -108,7 +99,6 @@ describe('CollectionComponent', () => {
       getCollection: vi.fn().mockReturnValue(of([]))
     };
     authApiService = {
-      loadSession: vi.fn(),
       logout: vi.fn().mockReturnValue(of(void 0)),
       clearSession: vi.fn(),
       username: signal<string | null>('Chase'),
@@ -127,7 +117,6 @@ describe('CollectionComponent', () => {
       getCollection: vi.fn().mockReturnValue(throwError(() => new Error('network error')))
     };
     authApiService = {
-      loadSession: vi.fn(),
       logout: vi.fn().mockReturnValue(of(void 0)),
       clearSession: vi.fn(),
       username: signal<string | null>('Chase'),
@@ -149,7 +138,6 @@ describe('CollectionComponent', () => {
         .mockReturnValueOnce(of(collectionEntries))
     };
     authApiService = {
-      loadSession: vi.fn(),
       logout: vi.fn().mockReturnValue(of(void 0)),
       clearSession: vi.fn(),
       username: signal<string | null>('Chase'),
@@ -166,9 +154,8 @@ describe('CollectionComponent', () => {
     expect(component.collection()).toEqual(collectionEntries);
   });
 
-  it('clears the session and redirects to /login when loadSession fails', async () => {
+  it('redirects to /login when no local token is present', async () => {
     authApiService = {
-      loadSession: vi.fn().mockReturnValue(throwError(() => new Error('unauthenticated'))),
       logout: vi.fn().mockReturnValue(of(void 0)),
       clearSession: vi.fn(),
       username: signal<string | null>(null),
@@ -180,7 +167,7 @@ describe('CollectionComponent', () => {
 
     fixture.detectChanges();
 
-    expect(authApiService.clearSession).toHaveBeenCalled();
+    expect(authApiService.clearSession).not.toHaveBeenCalled();
     expect(component.loading()).toBe(false);
     expect(collectionApiService.getCollection).not.toHaveBeenCalled();
     expect(navigateSpy).toHaveBeenCalledWith(['/login']);
@@ -188,7 +175,6 @@ describe('CollectionComponent', () => {
 
   it('logs out and redirects to /login when the action is clicked', async () => {
     authApiService = {
-      loadSession: vi.fn(),
       logout: vi.fn().mockReturnValue(of(void 0)),
       clearSession: vi.fn(),
       username: signal<string | null>('Chase'),
@@ -207,7 +193,6 @@ describe('CollectionComponent', () => {
 
   it('clears the local session and still redirects to /login when the logout request fails', async () => {
     authApiService = {
-      loadSession: vi.fn(),
       logout: vi.fn().mockReturnValue(throwError(() => new Error('network error'))),
       clearSession: vi.fn(),
       username: signal<string | null>('Chase'),

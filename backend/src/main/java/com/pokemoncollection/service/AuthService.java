@@ -1,31 +1,41 @@
 package com.pokemoncollection.service;
 
-import com.pokemoncollection.dto.TrainerSessionDto;
+import com.pokemoncollection.dto.AuthenticationResponseDto;
 import com.pokemoncollection.entity.Trainer;
 import com.pokemoncollection.exception.DuplicateTrainerNameException;
-import com.pokemoncollection.exception.InvalidCredentialsException;
 import com.pokemoncollection.repository.TrainerRepository;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
-import java.util.List;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.io.Decoders;
+import io.jsonwebtoken.security.Keys;
+import java.util.Date;
+import java.util.function.Function;
+import javax.crypto.SecretKey;
+import org.jspecify.annotations.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-public class AuthService
+public class AuthService implements UserDetailsService
 {
-
   private static final Logger LOGGER = LoggerFactory.getLogger(AuthService.class);
 
   private final TrainerRepository trainerRepository;
   private final PasswordEncoder passwordEncoder;
+
+  @Value("${security.jwt.secret-key}")
+  private String secretKey;
+
+  @Value("${security.jwt.expiration-time}")
+  private long jwtExpiration;
 
   public AuthService(TrainerRepository trainerRepository, PasswordEncoder passwordEncoder)
   {
@@ -34,14 +44,7 @@ public class AuthService
   }
 
   @Transactional
-  public TrainerSessionDto register(String name, String password, HttpServletRequest request)
-  {
-    return register(name, password, request, null);
-  }
-
-  @Transactional
-  public TrainerSessionDto register(String name, String password,
-                                    HttpServletRequest request, HttpServletResponse response)
+  public AuthenticationResponseDto register(String name, String password)
   {
     String normalizedName = name.trim();
 
@@ -61,46 +64,107 @@ public class AuthService
       throw new DuplicateTrainerNameException(normalizedName);
     }
 
-    authenticate(savedTrainer.getName(), request, response);
-    LOGGER.info("Registered trainer {}", savedTrainer.getName());
-    return new TrainerSessionDto(savedTrainer.getName());
+    LOGGER.info("Registered trainer {}", savedTrainer.getUsername());
+    return new AuthenticationResponseDto(savedTrainer.getUsername(), generateToken(savedTrainer));
   }
 
   @Transactional(readOnly = true)
-  public TrainerSessionDto login(String name, String password,
-                                 HttpServletRequest request, HttpServletResponse response)
+  public AuthenticationResponseDto login(String name, String password)
   {
     String normalizedName = name.trim();
-    Trainer trainer = trainerRepository.findByName(normalizedName).orElseThrow(InvalidCredentialsException::new);
+    Trainer trainer = trainerRepository.findByName(normalizedName)
+      .orElseThrow(com.pokemoncollection.exception.InvalidCredentialsException::new);
 
     if (!passwordEncoder.matches(password, trainer.getPasswordHash()))
     {
-      throw new InvalidCredentialsException();
+      throw new com.pokemoncollection.exception.InvalidCredentialsException();
     }
 
-    authenticate(trainer.getName(), request, response);
-    LOGGER.info("Authenticated trainer {}", trainer.getName());
-    return new TrainerSessionDto(trainer.getName());
+    LOGGER.info("Authenticated trainer {}", trainer.getUsername());
+    return new AuthenticationResponseDto(trainer.getUsername(), generateToken(trainer));
   }
 
-  public TrainerSessionDto currentSession(String username)
+  @Transactional
+  public void logout(String username)
   {
-    return new TrainerSessionDto(username);
+    Trainer trainer = trainerRepository.findByName(username)
+      .orElseThrow(() -> new UsernameNotFoundException("Trainer not found: " + username));
+    trainer.revokeTokens();
+    LOGGER.info("Logged out trainer {}", trainer.getUsername());
   }
 
-  private void authenticate(String trainerName, HttpServletRequest request, HttpServletResponse response)
+  public String generateToken(String userName)
   {
-    var authentication = new UsernamePasswordAuthenticationToken(trainerName, null, List.of());
-    var context = SecurityContextHolder.createEmptyContext();
-    context.setAuthentication(authentication);
-    SecurityContextHolder.setContext(context);
+    Trainer trainer = trainerRepository.findByName(userName)
+      .orElseThrow(() -> new UsernameNotFoundException("Trainer not found: " + userName));
+    return generateToken(trainer);
+  }
 
-    if (response != null)
+  private String generateToken(Trainer trainer)
+  {
+    return Jwts.builder()
+      .subject(trainer.getUsername())
+      .claim("tokenVersion", trainer.getTokenVersion())
+      .issuedAt(new Date())
+      .expiration(new Date(System.currentTimeMillis() + jwtExpiration))
+      .signWith(getSignKey())
+      .compact();
+  }
+
+  private SecretKey getSignKey()
+  {
+    byte[] keyBytes = Decoders.BASE64.decode(secretKey);
+    return Keys.hmacShaKeyFor(keyBytes);
+  }
+
+  public String extractUsername(String token)
+  {
+    return extractClaim(token, Claims::getSubject);
+  }
+
+  public Date extractExpiration(String token)
+  {
+    return extractClaim(token, Claims::getExpiration);
+  }
+
+  public <T> T extractClaim(String token, Function<Claims, T> claimsResolver)
+  {
+    final Claims claims = extractAllClaims(token);
+    return claimsResolver.apply(claims);
+  }
+
+  private Claims extractAllClaims(String token)
+  {
+    return Jwts.parser()
+      .verifyWith(getSignKey())
+      .build()
+      .parseSignedClaims(token)
+      .getPayload();
+  }
+
+  private Boolean isTokenExpired(String token)
+  {
+    return extractExpiration(token).before(new Date());
+  }
+
+  public Boolean validateToken(String token, UserDetails userDetails)
+  {
+    final String username = extractUsername(token);
+    if (!(userDetails instanceof Trainer trainer))
     {
-      new HttpSessionSecurityContextRepository().saveContext(context, request, response);
-      return;
+      return false;
     }
-    request.getSession(true)
-      .setAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY, context);
+
+    Number tokenVersion = extractClaim(token, claims -> claims.get("tokenVersion", Number.class));
+    return username.equals(trainer.getUsername())
+      && tokenVersion != null
+      && tokenVersion.longValue() == trainer.getTokenVersion()
+      && !isTokenExpired(token);
+  }
+
+  @Override
+  public UserDetails loadUserByUsername(@NonNull String username) throws UsernameNotFoundException
+  {
+    return trainerRepository.findByName(username).orElseThrow(() -> new UsernameNotFoundException("Trainer not found: " + username));
   }
 }

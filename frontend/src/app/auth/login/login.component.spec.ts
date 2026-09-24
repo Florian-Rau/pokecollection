@@ -45,7 +45,7 @@ describe('LoginComponent', () => {
   });
 
   it('navigates to the collection route after successful login', () => {
-    vi.mocked(authApiService.login).mockReturnValue(of({ username: 'Chase' }));
+    vi.mocked(authApiService.login).mockReturnValue(of({ username: 'Chase', token: 'token' }));
     const router = TestBed.inject(Router);
     const navigateSpy = vi.spyOn(router, 'navigate').mockResolvedValue(true);
 

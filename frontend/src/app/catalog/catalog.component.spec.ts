@@ -2,7 +2,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
-import { defer, of, Subject, throwError } from 'rxjs';
+import { of, Subject, throwError } from 'rxjs';
 import { vi } from 'vitest';
 import { CollectionApiService } from '../collection/collection-api.service';
 import { AuthApiService } from '../core/auth-api.service';
@@ -12,7 +12,7 @@ import { CatalogComponent } from './catalog.component';
 describe('CatalogComponent', () => {
   let fixture: ComponentFixture<CatalogComponent>;
   let component: CatalogComponent;
-  let authApiService: Pick<AuthApiService, 'loadSession' | 'logout' | 'clearSession' | 'username' | 'isAuthenticated'>;
+  let authApiService: Pick<AuthApiService, 'logout' | 'clearSession' | 'username' | 'isAuthenticated'>;
   let catalogApiService: Pick<CatalogApiService, 'getPage' | 'findByName'>;
   let collectionApiService: Pick<CollectionApiService, 'getCollection' | 'addToCollection'>;
 
@@ -73,7 +73,6 @@ describe('CatalogComponent', () => {
 
   beforeEach(() => {
     authApiService = {
-      loadSession: vi.fn(),
       logout: vi.fn().mockReturnValue(of(void 0)),
       clearSession: vi.fn(),
       username: signal<string | null>('Chase'),
@@ -299,9 +298,8 @@ describe('CatalogComponent', () => {
     expect(component.unavailable()).toBe(false);
   });
 
-  it('loads the session and redirects to login when the session cannot be restored', async () => {
+  it('redirects to login when no local token is present', async () => {
     authApiService = {
-      loadSession: vi.fn().mockReturnValue(throwError(() => new Error('unauthenticated'))),
       logout: vi.fn().mockReturnValue(of(void 0)),
       clearSession: vi.fn(),
       username: signal<string | null>(null),
@@ -313,31 +311,10 @@ describe('CatalogComponent', () => {
 
     fixture.detectChanges();
 
-    expect(authApiService.clearSession).toHaveBeenCalled();
+    expect(authApiService.clearSession).not.toHaveBeenCalled();
     expect(navigateSpy).toHaveBeenCalledWith(['/login']);
   });
 
-  it('restores the session before loading the first page when needed', async () => {
-    const username = signal<string | null>(null);
-    authApiService = {
-      loadSession: vi.fn().mockReturnValue(defer(() => {
-        username.set('Chase');
-        return of({ username: 'Chase' });
-      })),
-      logout: vi.fn().mockReturnValue(of(void 0)),
-      clearSession: vi.fn(),
-      username,
-      isAuthenticated: signal(false)
-    };
-    await createComponent();
-
-    fixture.detectChanges();
-
-    expect(authApiService.loadSession).toHaveBeenCalled();
-    expect(collectionApiService.getCollection).toHaveBeenCalled();
-    expect(catalogApiService.getPage).toHaveBeenCalledWith(20, 0);
-    expect(component.username()).toBe('Chase');
-  });
 
   it('preloads owned ids and disables add for pokemon already in the collection', async () => {
     collectionApiService = {

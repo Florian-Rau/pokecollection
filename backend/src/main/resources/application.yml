@@ -22,3 +22,8 @@ logging:
 
 pokeapi:
   base-url: https://pokeapi.co/api/v2
+
+security:
+  jwt:
+    secret-key: ${JWT_SECRET_KEY:cG9rZW1vbi1jb2xsZWN0aW9uLXRlc3Qtc2VjcmV0LWtleS0zMi1ieXRlcyE=}
+    expiration-time: ${JWT_EXPIRATION_TIME:300000}

@@ -1,7 +1,9 @@
-import { provideHttpClient, withXsrfConfiguration } from '@angular/common/http';
+import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { CollectionApiService } from './collection-api.service';
+import { authInterceptor } from '../core/auth.interceptor';
+import { AuthStateService } from '../core/auth-state.service';
 
 describe('CollectionApiService', () => {
   let service: CollectionApiService;
@@ -11,16 +13,14 @@ describe('CollectionApiService', () => {
     TestBed.configureTestingModule({
       providers: [
         CollectionApiService,
-        provideHttpClient(withXsrfConfiguration({
-          cookieName: 'XSRF-TOKEN',
-          headerName: 'X-XSRF-TOKEN'
-        })),
+        provideHttpClient(withInterceptors([authInterceptor])),
         provideHttpClientTesting()
       ]
     });
 
     service = TestBed.inject(CollectionApiService);
     httpTestingController = TestBed.inject(HttpTestingController);
+    TestBed.inject(AuthStateService).setSession('test-token', 'Chase');
   });
 
   afterEach(() => {
@@ -32,6 +32,7 @@ describe('CollectionApiService', () => {
 
     const request = httpTestingController.expectOne('/api/collection');
     expect(request.request.method).toBe('GET');
+    expect(request.request.headers.get('Authorization')).toBe('Bearer test-token');
     request.flush([
       {
         pokemonId: 25,
@@ -48,6 +49,7 @@ describe('CollectionApiService', () => {
 
     const request = httpTestingController.expectOne('/api/collection');
     expect(request.request.method).toBe('POST');
+    expect(request.request.headers.get('Authorization')).toBe('Bearer test-token');
     expect(request.request.body).toEqual({ pokemonId: 25 });
     request.flush(null);
   });

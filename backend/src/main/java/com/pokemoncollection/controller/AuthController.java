@@ -1,16 +1,13 @@
 package com.pokemoncollection.controller;
 
+import com.pokemoncollection.dto.AuthenticationResponseDto;
 import com.pokemoncollection.dto.LoginRequestDto;
 import com.pokemoncollection.dto.RegisterRequestDto;
-import com.pokemoncollection.dto.TrainerSessionDto;
 import com.pokemoncollection.service.AuthService;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -21,7 +18,6 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/auth")
 public class AuthController
 {
-
   private final AuthService authService;
 
   public AuthController(AuthService authService)
@@ -31,24 +27,22 @@ public class AuthController
 
   @PostMapping("/login")
   @ResponseStatus(HttpStatus.OK)
-  public TrainerSessionDto login(@Valid @RequestBody LoginRequestDto request,
-                                 HttpServletRequest httpServletRequest,
-                                 HttpServletResponse httpServletResponse)
+  public AuthenticationResponseDto login(@Valid @RequestBody LoginRequestDto request)
   {
-    return authService.login(request.name(), request.password(), httpServletRequest, httpServletResponse);
+    return authService.login(request.name(), request.password());
   }
 
   @PostMapping("/register")
-  public ResponseEntity<TrainerSessionDto> register(@Valid @RequestBody RegisterRequestDto request, HttpServletRequest httpServletRequest, HttpServletResponse httpServletResponse)
+  public ResponseEntity<AuthenticationResponseDto> register(@Valid @RequestBody RegisterRequestDto request)
   {
-    TrainerSessionDto session = authService.register(request.name(), request.password(), httpServletRequest, httpServletResponse);
-    return ResponseEntity.status(HttpStatus.CREATED).body(session);
+    AuthenticationResponseDto response = authService.register(request.name(), request.password());
+    return ResponseEntity.status(HttpStatus.CREATED).body(response);
   }
 
-  @GetMapping("/session")
-  @ResponseStatus(HttpStatus.OK)
-  public TrainerSessionDto session(Authentication authentication)
+  @PostMapping("/logout")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  public void logout(Authentication authentication)
   {
-    return authService.currentSession(authentication.getName());
+    authService.logout(authentication.getName());
   }
 }

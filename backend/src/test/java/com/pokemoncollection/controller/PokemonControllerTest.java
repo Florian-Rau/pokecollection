@@ -3,7 +3,6 @@ package com.pokemoncollection.controller;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasKey;
 import static org.hamcrest.Matchers.nullValue;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -23,6 +22,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import com.pokemoncollection.entity.Trainer;
+import com.pokemoncollection.repository.CollectionEntryRepository;
+import com.pokemoncollection.repository.TrainerRepository;
+import com.pokemoncollection.service.AuthService;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -41,6 +44,15 @@ class PokemonControllerTest
 
   @Autowired
   private WebApplicationContext applicationContext;
+
+  @Autowired
+  private TrainerRepository trainerRepository;
+
+  @Autowired
+  private CollectionEntryRepository collectionEntryRepository;
+
+  @Autowired
+  private AuthService authService;
 
   @AfterAll
   static void stopServer()
@@ -64,6 +76,9 @@ class PokemonControllerTest
     mockMvc = MockMvcBuilders.webAppContextSetup(applicationContext)
       .apply(springSecurity())
       .build();
+    collectionEntryRepository.deleteAll();
+    trainerRepository.deleteAll();
+    trainerRepository.save(new Trainer("Chase", "hash"));
     stubPokeApi.reset();
   }
 
@@ -81,7 +96,7 @@ class PokemonControllerTest
       }
       """, 0);
 
-    mockMvc.perform(get("/api/pokemon").with(user("Chase")))
+    mockMvc.perform(get("/api/pokemon").header("Authorization", bearerToken()))
       .andExpect(status().isOk())
       .andExpect(content().contentType("application/json"))
       .andExpect(jsonPath("$.count", equalTo(1302)))
@@ -107,7 +122,7 @@ class PokemonControllerTest
       }
       """, 3100);
 
-    mockMvc.perform(get("/api/pokemon").with(user("Chase")))
+    mockMvc.perform(get("/api/pokemon").header("Authorization", bearerToken()))
       .andExpect(status().isBadGateway())
       .andExpect(content().contentType("application/problem+json"))
       .andExpect(jsonPath("$.detail", equalTo("Der Pokémon-Katalog ist vorübergehend nicht verfügbar. Bitte versuche es später erneut.")));
@@ -127,7 +142,7 @@ class PokemonControllerTest
       }
       """, 0);
 
-    mockMvc.perform(get("/api/pokemon").with(user("Chase")))
+    mockMvc.perform(get("/api/pokemon").header("Authorization", bearerToken()))
       .andExpect(status().isBadGateway())
       .andExpect(content().contentType("application/problem+json"))
       .andExpect(jsonPath("$.detail", equalTo("Der Pokémon-Katalog ist vorübergehend nicht verfügbar. Bitte versuche es später erneut.")));
@@ -136,7 +151,7 @@ class PokemonControllerTest
   @Test
   void getPageReturnsBadRequestWhenPagingParametersAreInvalid() throws Exception
   {
-    mockMvc.perform(get("/api/pokemon?limit=abc").with(user("Chase")))
+    mockMvc.perform(get("/api/pokemon?limit=abc").header("Authorization", bearerToken()))
       .andExpect(status().isBadRequest())
       .andExpect(content().contentType("application/problem+json"))
       .andExpect(jsonPath("$.detail", equalTo("The request parameters are invalid.")));
@@ -151,7 +166,7 @@ class PokemonControllerTest
       }
       """, 0);
 
-    mockMvc.perform(get("/api/pokemon/missingno").with(user("Chase")))
+    mockMvc.perform(get("/api/pokemon/missingno").header("Authorization", bearerToken()))
       .andExpect(status().isNotFound())
       .andExpect(content().contentType("application/problem+json"))
       .andExpect(jsonPath("$.detail", equalTo("Kein Pokémon mit dem Namen 'missingno' gefunden.")));
@@ -166,7 +181,7 @@ class PokemonControllerTest
       }
       """, 0);
 
-    mockMvc.perform(get("/api/pokemon/pikachu").with(user("Chase")))
+    mockMvc.perform(get("/api/pokemon/pikachu").header("Authorization", bearerToken()))
       .andExpect(status().isBadGateway())
       .andExpect(content().contentType("application/problem+json"))
       .andExpect(jsonPath("$.detail", equalTo("Der Pokémon-Katalog ist vorübergehend nicht verfügbar. Bitte versuche es später erneut.")));
@@ -211,6 +226,7 @@ class PokemonControllerTest
         {
           Thread.currentThread().interrupt();
         }
+
       }
 
       byte[] body = currentResponse.body().getBytes(StandardCharsets.UTF_8);
@@ -238,5 +254,10 @@ class PokemonControllerTest
     server = HttpServer.create(new InetSocketAddress(0), 0);
     server.createContext("/api/v2", stubPokeApi::handle);
     server.start();
+  }
+
+  private String bearerToken()
+  {
+    return "Bearer " + authService.generateToken("Chase");
   }
 }

@@ -1,6 +1,7 @@
 import { HttpClient } from '@angular/common/http';
-import { Injectable, computed, inject, signal } from '@angular/core';
-import { tap } from 'rxjs';
+import { Injectable, computed, inject } from '@angular/core';
+import { of, tap } from 'rxjs';
+import { AuthStateService } from './auth-state.service';
 import { ProblemDetail } from './problem-detail';
 
 export interface RegisterPayload {
@@ -13,8 +14,9 @@ export interface LoginPayload {
   password: string;
 }
 
-export interface TrainerSession {
+export interface AuthenticationResponse {
   username: string;
+  token: string | null;
 }
 
 @Injectable({
@@ -22,20 +24,20 @@ export interface TrainerSession {
 })
 export class AuthApiService {
   private readonly http = inject(HttpClient);
-  private readonly usernameSignal = signal<string | null>(null);
+  private readonly authState = inject(AuthStateService);
 
-  readonly username = computed(() => this.usernameSignal());
-  readonly isAuthenticated = computed(() => this.usernameSignal() !== null);
+  readonly username = computed(() => this.authState.username());
+  readonly isAuthenticated = computed(() => this.authState.token() !== null);
 
   register(payload: RegisterPayload) {
-    return this.http.post<TrainerSession>('/api/auth/register', payload).pipe(
-      tap((session) => this.usernameSignal.set(session.username))
+    return this.http.post<AuthenticationResponse>('/api/auth/register', payload).pipe(
+      tap((session) => this.storeSession(session))
     );
   }
 
   login(payload: LoginPayload) {
-    return this.http.post<TrainerSession>('/api/auth/login', payload).pipe(
-      tap((session) => this.usernameSignal.set(session.username))
+    return this.http.post<AuthenticationResponse>('/api/auth/login', payload).pipe(
+      tap((session) => this.storeSession(session))
     );
   }
 
@@ -45,14 +47,16 @@ export class AuthApiService {
     );
   }
 
-  loadSession() {
-    return this.http.get<TrainerSession>('/api/auth/session').pipe(
-      tap((session) => this.usernameSignal.set(session.username))
-    );
+  clearSession() {
+    this.authState.clear();
   }
 
-  clearSession() {
-    this.usernameSignal.set(null);
+  private storeSession(session: AuthenticationResponse) {
+    if (!session.token) {
+      throw new Error('The authentication response did not contain a token.');
+    }
+
+    this.authState.setSession(session.token, session.username);
   }
 
   static extractDetail(error: unknown, fallback: string): string {

@@ -97,19 +97,8 @@ export class CatalogComponent {
       return;
     }
 
-    this.authApi.loadSession()
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: () => {
-          this.sessionLoading.set(false);
-          this.loadCollectionOwnershipAndPage();
-        },
-        error: () => {
-          this.authApi.clearSession();
-          this.sessionLoading.set(false);
-          void this.router.navigate(['/login']);
-        }
-      });
+    this.sessionLoading.set(false);
+    void this.router.navigate(['/login']);
   }
 
   onQueryChange(value: string) {

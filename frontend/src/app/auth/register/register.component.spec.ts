@@ -50,7 +50,7 @@ describe('RegisterComponent', () => {
   });
 
   it('navigates to the collection route after successful registration', () => {
-    vi.mocked(authApiService.register).mockReturnValue(of({ username: 'Chase' }));
+    vi.mocked(authApiService.register).mockReturnValue(of({ username: 'Chase', token: 'token' }));
     component.form.setValue({
       name: 'Chase',
       password: 'hunter22',

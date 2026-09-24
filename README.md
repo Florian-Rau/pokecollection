@@ -27,4 +27,7 @@ Aktuell nicht implementiert:
 - Administration von Trainern
 - Caching PokeApi
 - Pokémon Details
+- JWT Refresh
 
+Vereinfachung:
+- Hardcoded JWT Secret Key, wenn Environment variable nicht gesetzt ist.
