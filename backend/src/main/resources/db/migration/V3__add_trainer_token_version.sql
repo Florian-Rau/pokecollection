@@ -1,0 +1,1 @@
+ALTER TABLE trainer ADD COLUMN token_version BIGINT NOT NULL DEFAULT 0;
